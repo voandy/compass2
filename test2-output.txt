@@ -1,0 +1,28 @@
+=========================Stage 1=========================
+Word 0: lamborghini
+Label probabilities: 3% 0% 97%
+
+=========================Stage 2=========================
+Number of words: 3
+Average number of characters per word: 7.00
+
+=========================Stage 3=========================
+mary
+had
+a
+little
+lamborghini
+
+=========================Stage 4=========================
+mary                            FIRST_NAME, LAST_NAME
+had                             NOT_NAME
+a                               NOT_NAME
+little                          FIRST_NAME, LAST_NAME
+lamborghini                     FIRST_NAME
+
+=========================Stage 5=========================
+mary                            FIRST_NAME
+had                             NOT_NAME
+a                               NOT_NAME
+little                          NOT_NAME
+lamborghini                     NOT_NAME
