@@ -5,10 +5,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <string.h>
+#include <ctype.h>
 
 #define MAX_NAME_LENGTH 30 /* max chars in a name */
 #define MAX_DICT_LENGTH 100 /* max entries in dictionary */
+
+typedef char data_t[MAX_NAME_LENGTH];
+#include "listops.c"
 
 #define DIV "=========================" /* stage header */
 /* stage numbers */
@@ -31,6 +36,7 @@ void print_stage_header(int stage_no);
 void print_word (namedict_t namedict[], int word_no);
 void stage_one (namedict_t namedict[]);
 void stage_two(namedict_t namedict[], int dict_length);
+void stage_three(list_t *sentence);
 
 /* main program */
 int
@@ -40,7 +46,7 @@ main(int argc, char *argv[]) {
 	
 	/* reads our dictionary entries into namedict*/
 	char tempname[MAX_NAME_LENGTH];
-	char hash;
+	char hash; /* stores a char, used to remove # and check for % in input */
 	int i;
 	for (i = 0;; i++) {
 
@@ -52,8 +58,9 @@ main(int argc, char *argv[]) {
 			break;
 		}
 
-		/* copies temp name into our dictionary array, this step prevents the 
-		%%%%%%%%%% line from being copied into our array */
+		/* copies tempname into our dictionary array, copying after the break
+		condition rather than in the scanf function prevents the %%%%%%%%%% 
+		line from being copied into our array */
 		strcpy (namedict[i].name_ref, tempname);
 
 		/* reads in probabilities */
@@ -62,11 +69,20 @@ main(int argc, char *argv[]) {
 	}
 	dict_length = i;
 
+	/* creates a linked list and read in the inputted sentence */
+	list_t *sentence = make_empty_list();
+	while (scanf("%s", tempname) != EOF) {
+		insert_at_foot(sentence, tempname);
+	}
+
 	/* stage 1 */
 	stage_one(namedict);
 	
 	/* stage 2 */
 	stage_two(namedict, dict_length);
+
+	/* stage 3 */
+	stage_three(sentence);
 
 	return 0;
 }
@@ -114,4 +130,18 @@ stage_two(namedict_t namedict[], int dict_length) {
 
 	printf("Number of words: %d\n", dict_length);
 	printf("Average number of characters per word: %.2f\n", avg_count);
+}
+
+void 
+stage_three(list_t *sentence) {
+	print_stage_header(STAGE_NUM_THREE);
+
+	/* prints each word in the linked list given */
+	data_t curr_word; 
+	while(sentence->head) {
+		strcpy(curr_word, get_head(sentence));
+		printf("%s\n", curr_word);
+		sentence = get_tail(sentence);
+	}
+
 }

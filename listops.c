@@ -43,7 +43,7 @@ list_t
 	node_t *new;
 	new = (node_t*)malloc(sizeof(*new));
 	assert(list!=NULL && new!=NULL);
-	new->data = value;
+	strcpy(new->data, value);
 	new->next = list->head;
 	list->head = new;
 	if (list->foot==NULL) {
@@ -58,7 +58,7 @@ list_t
 	node_t *new;
 	new = (node_t*)malloc(sizeof(*new));
 	assert(list!=NULL && new!=NULL);
-	new->data = value;
+	strcpy(new->data, value);
 	new->next = NULL;
 	if (list->foot==NULL) {
 		/* this is the first insertion into the list */
@@ -70,7 +70,7 @@ list_t
 	return list;
 }
 
-data_t
+const char *
 get_head(list_t *list) {
 	assert(list!=NULL && list->head!=NULL);
 	return list->head->data;
@@ -100,4 +100,8 @@ list_t
    information.
 
    Prepared December 2012 for the Revised Edition.
+
+   Modified by Andy Vo - May 2017
+   Made slight modifications to insert and get functions so that
+   the code can be used with strings rather than ints.
    ================================================================== */
