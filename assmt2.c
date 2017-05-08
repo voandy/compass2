@@ -7,12 +7,11 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <ctype.h>
 
 #define MAX_NAME_LENGTH 30 /* max chars in a name */
 #define MAX_DICT_LENGTH 100 /* max entries in dictionary */
 
-typedef char data_t[MAX_NAME_LENGTH];
+typedef char word_t[MAX_NAME_LENGTH];
 #include "listops.c"
 
 #define DIV "=========================" /* stage header */
@@ -33,10 +32,12 @@ typedef struct namedict_t{
 
 /* function prototypes */
 void print_stage_header(int stage_no);
-void print_word (namedict_t namedict[], int word_no);
 void stage_one (namedict_t namedict[]);
+void print_word (namedict_t namedict[], int word_no);
 void stage_two(namedict_t namedict[], int dict_length);
 void stage_three(list_t *sentence);
+void stage_four(namedict_t namedict[], int dict_length, list_t *sentence, 
+	int sentence_length);
 
 /* main program */
 int
@@ -45,23 +46,23 @@ main(int argc, char *argv[]) {
 	int dict_length = 0;
 	
 	/* reads our dictionary entries into namedict*/
-	char tempname[MAX_NAME_LENGTH];
+	word_t curr_word;
 	char hash; /* stores a char, used to remove # and check for % in input */
 	int i;
 	for (i = 0;; i++) {
 
 		/* individually reads in suffix before reading in name */
-		scanf("%c%s", &hash, tempname);
+		scanf("%c%s", &hash, curr_word);
 
 		/* breaks the loop when the end of the dict is reached */
 		if (hash == '%') {
 			break;
 		}
 
-		/* copies tempname into our dictionary array, copying after the break
+		/* copies curr_word into our dictionary array, copying after the break
 		condition rather than in the scanf function prevents the %%%%%%%%%% 
 		line from being copied into our array */
-		strcpy (namedict[i].name_ref, tempname);
+		strcpy (namedict[i].name_ref, curr_word);
 
 		/* reads in probabilities */
 		scanf("%d %d %d\n", &namedict[i].p_first, &namedict[i].p_last, 
@@ -69,10 +70,12 @@ main(int argc, char *argv[]) {
 	}
 	dict_length = i;
 
-	/* creates a linked list and read in the inputted sentence */
+	/* creates a linked list and reads in the inputted sentence */
+	int sentence_length = 0;
 	list_t *sentence = make_empty_list();
-	while (scanf("%s", tempname) != EOF) {
-		insert_at_foot(sentence, tempname);
+	while (scanf("%s", curr_word) != EOF) {
+		insert_at_foot(sentence, curr_word);
+		sentence_length++;
 	}
 
 	/* stage 1 */
@@ -82,7 +85,10 @@ main(int argc, char *argv[]) {
 	stage_two(namedict, dict_length);
 
 	/* stage 3 */
-	stage_three(sentence);
+	//stage_three(sentence);
+
+	/* stage 4 */
+	stage_four(namedict, dict_length, sentence, sentence_length);
 
 	return 0;
 }
@@ -120,7 +126,7 @@ stage_two(namedict_t namedict[], int dict_length) {
 	double avg_count;
 	int i, j;
 
-
+	/* counts total characters in all names and divides to get the mean */
 	for (i = 0; i < dict_length; i++) {
 		for (j = 0; namedict[i].name_ref[j] != '\0'; j++) {
 			char_count++;
@@ -132,16 +138,61 @@ stage_two(namedict_t namedict[], int dict_length) {
 	printf("Average number of characters per word: %.2f\n", avg_count);
 }
 
-void 
+
+void
 stage_three(list_t *sentence) {
 	print_stage_header(STAGE_NUM_THREE);
 
 	/* prints each word in the linked list given */
-	data_t curr_word; 
+	word_t curr_word; 
 	while(sentence->head) {
 		strcpy(curr_word, get_head(sentence));
 		printf("%s\n", curr_word);
 		sentence = get_tail(sentence);
 	}
 
+}
+
+/*
+void
+stage_three(list_t *sentence) {
+	print_stage_header(STAGE_NUM_THREE);
+
+	printf("%s\n", sentence->head->data);
+	word_t curr_word;
+	while(sentence->head->next) {
+		strcpy(curr_word, sentence->head->data);
+		printf("%s\n", curr_word);
+	}
+}
+*/
+
+void
+stage_four(namedict_t namedict[], int dict_length, list_t *sentence,
+	int sentence_length) {
+	print_stage_header(STAGE_NUM_FOUR);
+
+	char first[10] = "FIRST_NAME";
+	char last[10] = "LAST_NAME";
+	char not[10] = "NOT_NAME";
+
+	word_t curr_word;
+	namedict_t* name_address;
+
+	while(sentence->head) {
+		strcpy(curr_word, get_head(sentence));
+		sentence = get_tail(sentence);
+
+		name_address = bsearch(&curr_word, namedict, dict_length, 
+			sizeof (namedict_t), (int(*)(const void*,const void*)) strcmp);
+
+		if (name_address) {
+			printf("%-32s", curr_word);
+			printf("%s, %s\n", first, last);
+		}
+		else {
+			printf("%-32s", curr_word);
+			printf("%s\n", not);
+		}
+	}
 }

@@ -1,7 +1,7 @@
 typedef struct node node_t;
 
 struct node {
-	data_t data;
+	word_t data;
 	node_t *next;
 };
 
@@ -39,7 +39,7 @@ free_list(list_t *list) {
 }
 
 list_t
-*insert_at_head(list_t *list, data_t value) {
+*insert_at_head(list_t *list, word_t value) {
 	node_t *new;
 	new = (node_t*)malloc(sizeof(*new));
 	assert(list!=NULL && new!=NULL);
@@ -54,7 +54,7 @@ list_t
 }
 
 list_t
-*insert_at_foot(list_t *list, data_t value) {
+*insert_at_foot(list_t *list, word_t value) {
 	node_t *new;
 	new = (node_t*)malloc(sizeof(*new));
 	assert(list!=NULL && new!=NULL);
