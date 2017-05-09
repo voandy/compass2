@@ -10,11 +10,13 @@
 
 #define MAX_NAME_LENGTH 30 /* max chars in a name */
 #define MAX_DICT_LENGTH 100 /* max entries in dictionary */
+#define MAX_LABEL_LENGTH 10 /* max chars in name labels */
 
 typedef char word_t[MAX_NAME_LENGTH];
 #include "listops.c"
 
 #define DIV "=========================" /* stage header */
+
 /* stage numbers */
 #define STAGE_NUM_ONE 1 
 #define STAGE_NUM_TWO 2
@@ -31,6 +33,8 @@ typedef struct namedict_t{
 } namedict_t;
 
 /* function prototypes */
+int read_namedict(namedict_t namedict[]);
+int read_sentence(list_t *sentence);
 void print_stage_header(int stage_no);
 void stage_one (namedict_t namedict[]);
 void print_word (namedict_t namedict[], int word_no);
@@ -43,9 +47,35 @@ void stage_four(namedict_t namedict[], int dict_length, list_t *sentence,
 int
 main(int argc, char *argv[]) {
 	namedict_t namedict[MAX_DICT_LENGTH]; /* stores dictionary entries */
-	int dict_length = 0;
-	
+	list_t *sentence = make_empty_list(); /* stores words from sentence */
+	int dict_length;
+	int sentence_length;
+
 	/* reads our dictionary entries into namedict*/
+	dict_length = read_namedict(namedict);
+
+	/* reads words into sentence */
+	sentence_length = read_sentence(sentence);
+
+	/* stage 1 */
+	stage_one(namedict);
+	
+	/* stage 2 */
+	stage_two(namedict, dict_length);
+
+	/* stage 3 */
+	stage_three(sentence);
+
+	/* stage 4 */
+	stage_four(namedict, dict_length, sentence, sentence_length);
+
+	return 0;
+}
+
+/* reads in entries to populate namedict and returns no. of entries*/
+int 
+read_namedict(namedict_t namedict[]) {
+	int dict_length = 0;
 	word_t curr_word;
 	char hash; /* stores a char, used to remove # and check for % in input */
 	int i;
@@ -69,28 +99,18 @@ main(int argc, char *argv[]) {
 			&namedict[i].p_non_name);
 	}
 	dict_length = i;
+	return dict_length;
+}
 
-	/* creates a linked list and reads in the inputted sentence */
+/* reads words into our sentence linked list */
+int read_sentence(list_t *sentence) {
 	int sentence_length = 0;
-	list_t *sentence = make_empty_list();
+	word_t curr_word;
 	while (scanf("%s", curr_word) != EOF) {
 		insert_at_foot(sentence, curr_word);
 		sentence_length++;
 	}
-
-	/* stage 1 */
-	stage_one(namedict);
-	
-	/* stage 2 */
-	stage_two(namedict, dict_length);
-
-	/* stage 3 */
-	//stage_three(sentence);
-
-	/* stage 4 */
-	stage_four(namedict, dict_length, sentence, sentence_length);
-
-	return 0;
+	return sentence_length;
 }
 
 /* prints a stage header */
@@ -118,6 +138,7 @@ print_word (namedict_t namedict[], int word_no) {
 		namedict[word_no].p_last, namedict[word_no].p_non_name);
 }
 
+/* calculates and prints the average character per word in namedict */
 void
 stage_two(namedict_t namedict[], int dict_length) {
 	print_stage_header(STAGE_NUM_TWO);
@@ -138,7 +159,6 @@ stage_two(namedict_t namedict[], int dict_length) {
 	printf("Average number of characters per word: %.2f\n", avg_count);
 }
 
-
 void
 stage_three(list_t *sentence) {
 	print_stage_header(STAGE_NUM_THREE);
@@ -150,7 +170,6 @@ stage_three(list_t *sentence) {
 		printf("%s\n", curr_word);
 		sentence = get_tail(sentence);
 	}
-
 }
 
 /*
@@ -167,14 +186,16 @@ stage_three(list_t *sentence) {
 }
 */
 
+/* searches namedict for each word in sentence, if the word is present we print
+FIRST_NAME/LAST_NAME if it has non-zero values for p_first and/or p_last */
 void
 stage_four(namedict_t namedict[], int dict_length, list_t *sentence,
 	int sentence_length) {
 	print_stage_header(STAGE_NUM_FOUR);
 
-	char first[10] = "FIRST_NAME";
-	char last[10] = "LAST_NAME";
-	char not[10] = "NOT_NAME";
+	char first[MAX_LABEL_LENGTH] = "FIRST_NAME";
+	char last[MAX_LABEL_LENGTH] = "LAST_NAME";
+	char not[MAX_LABEL_LENGTH] = "NOT_NAME";
 
 	word_t curr_word;
 	namedict_t* name_address;
@@ -183,12 +204,29 @@ stage_four(namedict_t namedict[], int dict_length, list_t *sentence,
 		strcpy(curr_word, get_head(sentence));
 		sentence = get_tail(sentence);
 
+		/* use a binary search to find curr_word in namedict
+		we are able to search for a string within a stuct since the string is
+		the first variable in the struct and strcmp conviently stops when \0
+		is encountered */
 		name_address = bsearch(&curr_word, namedict, dict_length, 
 			sizeof (namedict_t), (int(*)(const void*,const void*)) strcmp);
 
+		/* this conditional takes advantage of the fact that bsearch returns 
+		null if no match is found */
 		if (name_address) {
 			printf("%-32s", curr_word);
-			printf("%s, %s\n", first, last);
+			if (name_address->p_first && name_address->p_last) {
+				printf("%s, %s\n", first, last);
+			}
+			else if (name_address->p_first) {
+				printf("%s\n", first);
+			}
+			else if (name_address->p_last) {
+				printf("%s\n", last);
+			}
+			else {
+				printf("%s\n", not);
+			}
 		}
 		else {
 			printf("%-32s", curr_word);
