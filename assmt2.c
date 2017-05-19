@@ -46,11 +46,19 @@ typedef char word_t[MAX_WORD_LENGTH];
 
 /* struct to store properties of an entry in the dict */
 typedef struct dictionary_t{
-	char word_ref[MAX_WORD_LENGTH];
+	word_t word_ref;
 	int p_first;
 	int p_last;
 	int p_non_name;
 } dictionary_t;
+
+/* see stage 5. stores a word from sentence, its dictionary address if any 
+and its nametype if any */
+typedef struct word_details_t{
+	word_t word;
+	dictionary_t* entry_address; /* pointer to entry in dictionary */
+	int nametype; /* 0 for non name, 1 for first name, 2 for last name */
+} word_details_t;
 
 /* function prototypes */
 int read_dictionary(dictionary_t dictionary[]);
@@ -64,6 +72,9 @@ void stage_four(dictionary_t dictionary[], int dict_size, list_t *sentence);
 int word_dictionary_comp(const void *w, const void *d);
 void print_naive_labels(word_t curr_word, dictionary_t* entry_address);
 void stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence);
+word_details_t get_details(word_t curr_word, dictionary_t dictionary[], 
+	int dict_size);
+void print_smart_label(word_details_t curr_word);
 
 /* main program */
 int
@@ -262,19 +273,72 @@ void
 stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence) {
 	print_stage_header(STAGE_NUM_FIVE);
 
-	typedef struct namecalc_t{
-		char word[MAX_WORD_LENGTH];
-		int nametype;
-	} namecalc_t;
+	word_t curr_word; /* the current word we are focused on */
 
-	namecalc_t curr_word;
-	namecalc_t prev_word;
-	namecalc_t next_word;
+	/* stores details of the previous, current and next word in sentence, see
+	the typedef of word_details_t for details */
+	word_details_t prev_details;
+	word_details_t curr_details;
+	word_details_t next_details;
 
-	dictionary_t* entry_address;
-
+	/* gets details for curr_details */
 	node_t* curr_node = sentence->head;
-	while(curr_node) {
+	strcpy(curr_word, curr_node->data);
+	curr_details = get_details(curr_word, dictionary, dict_size);
+
+	if (!curr_node->next) {
+		curr_details.nametype = 0;
+		print_smart_label(curr_details);
+		return;
+	}
+
+	/* gets details for next_details */
+	curr_node = curr_node->next;
+	strcpy(curr_word, curr_node->data);
+	next_details = get_details(curr_word, dictionary, dict_size);
+
+
+
+
+
+	while(curr_node->next) {
 		curr_node = curr_node->next;
+	}
+}
+
+/* given and word and the dictionary returns a struct containing the word and
+a pointer to its entry in the dictionary if any */
+word_details_t 
+get_details(word_t curr_word, dictionary_t dictionary[], 
+	int dict_size) {
+	word_details_t curr_details;
+
+	strcpy(curr_details.word, curr_word);
+
+	curr_details.entry_address = bsearch(curr_word, dictionary, dict_size, 
+			sizeof(dictionary_t), word_dictionary_comp);
+
+	/* initialises nametype to null, it will be calculated later */
+	curr_details.nametype = 0;
+
+	return curr_details;
+}
+
+void 
+print_smart_label(word_details_t curr_details) {
+	printf("%-32s", curr_details.word);
+
+	switch(curr_details.nametype) {
+		case 0:
+		printf("%s\n", NOT);
+		break;
+
+		case 1:
+		printf("%s\n", FIRST);
+		break;
+
+		case 2:
+		printf("%s\n", LAST);
+		break;
 	}
 }
