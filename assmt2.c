@@ -47,6 +47,15 @@ typedef char word_t[MAX_WORD_LENGTH];
 #define LAST "LAST_NAME"
 #define NOT "NOT_NAME"
 
+/* word types */
+#define N_TYPE 0
+#define F_TYPE 1
+#define L_TYPE 2
+
+/* type weight for stage five */
+#define POS_WEIGHT 2
+#define NEG_WEIGHT 0.5
+
 /* struct to store properties of an entry in the dict */
 typedef struct dictionary_t{
 	word_t word_ref;
@@ -56,7 +65,7 @@ typedef struct dictionary_t{
 } dictionary_t;
 
 /* see stage 5. stores a word from sentence, its dictionary address if any 
-and its nametype if any */
+and its type if any */
 typedef struct word_details_t{
 	word_t word;
 	dictionary_t* entry_address; /* pointer to entry in dictionary */
@@ -174,7 +183,7 @@ stage_one (dictionary_t dictionary[]){
 	print_entry(dictionary, 0);
 }
 
-/* prints a single entry from dictionary, seperated from stage 1 so it can be 
+/* prints a single entry from dictionary, separated from stage 1 so it can be 
 called for debugging */
 void
 print_entry (dictionary_t dictionary[], int entry_no) {
@@ -268,8 +277,8 @@ print_naive_labels(word_t curr_word, dictionary_t* entry_address) {
 			printf("%s\n", LAST);
 		}
 		else {
-			/* possibly not necessary as there shouldn't be an entry in the dict
-			with a 100% associated with non_name */
+			/* possibly not necessary as there shouldn't be an entry in the 
+			dict with a 100% probability associated with non_name */
 			printf("%s\n", NOT);
 		}
 	}
@@ -280,6 +289,8 @@ print_naive_labels(word_t curr_word, dictionary_t* entry_address) {
 	}
 }
 
+/* reads all the words in the sentence then calculate and prints their types
+based on dictionary probabilities and context */
 void
 stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence) {
 	print_stage_header(STAGE_NUM_FIVE);
@@ -303,7 +314,7 @@ stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence) {
 	if (!curr_node->next) {
 		curr_details.nametype = type_one_word(curr_details);
 		print_smart_label(curr_details);
-		return; /* exits the fucntion */
+		return; /* exits the function */
 	}
 
 	/* details of second word added to next_details */
@@ -315,6 +326,7 @@ stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence) {
 	curr_details.nametype = type_first_word(curr_details, next_details);
 	print_smart_label(curr_details);
 
+	/* calculate the type of all but the first and last word */
 	while (curr_node->next){
 		strcpy(next_word, curr_node->next->data);
 
@@ -338,7 +350,6 @@ stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence) {
 	/* calculates the type of the last word */
 	curr_details.nametype = type_last_word(prev_details, curr_details);
 	print_smart_label(curr_details);
-
 }
 
 /* given and word and the dictionary returns a struct containing the word and
@@ -353,8 +364,8 @@ get_details(word_t curr_word, dictionary_t dictionary[],
 	curr_details.entry_address = bsearch(curr_word, dictionary, dict_size, 
 			sizeof(dictionary_t), word_dictionary_comp);
 
-	/* initialises nametype to null, it will be calculated later */
-	curr_details.nametype = 0;
+	/* initialises nametype to N_TYPE, it will be calculated later */
+	curr_details.nametype = N_TYPE;
 
 	return curr_details;
 }
@@ -363,7 +374,7 @@ get_details(word_t curr_word, dictionary_t dictionary[],
 highest probability */
 int 
 type_one_word(word_details_t curr_details) {
-	int nametype = 0; /* stores name type */
+	int nametype = N_TYPE; /* stores name type */
 
 	/* if the word isn't in the dictions simply return 0 */
 	if (!curr_details.entry_address) {
@@ -377,11 +388,11 @@ type_one_word(word_details_t curr_details) {
 	return nametype;
 }
 
-/* given the details of the first word and the word following this will
+/* given the details of the first word and the word following, will
 calculate and return the type of the first word */
 int 
 type_first_word(word_details_t curr_details, word_details_t next_details) {
-	int nametype = 0;
+	int nametype = N_TYPE;
 
 	if (!curr_details.entry_address) {
 		return nametype;
@@ -405,20 +416,21 @@ type_first_word(word_details_t curr_details, word_details_t next_details) {
 		curr_first = curr_first + next_last;
 	}
 	/* first word is unlikely to be a last name so we weight it accordingly */
-	curr_last = 0.5 * curr_last;
+	curr_last = curr_last * NEG_WEIGHT;
 
-	/* assign nametype to most probably type after weighting */
+	/* assign nametype to most probably type after weighing */
 	nametype = type_highest_prob(curr_first, curr_last, curr_non);
 
 	return nametype;
 }
 
-/* calculates the type of the current word in context, this function is a 
-combination of type_first_word and type_last_word */
+/* calculates the type of the current word in context.
+see type_first_word and type_last_word as this function is simple a 
+combination of those functions */
 int 
 type_curr_word(word_details_t prev_details, word_details_t curr_details, 
 	word_details_t next_details) {
-	int nametype = 0;
+	int nametype = N_TYPE;
 
 	if (!curr_details.entry_address) {
 		return nametype;
@@ -428,32 +440,35 @@ type_curr_word(word_details_t prev_details, word_details_t curr_details,
 	int curr_last = curr_details.entry_address->p_last;
 	int curr_non = curr_details.entry_address->p_non_name;
 
+	/* the probability of the next word being a last name */
 	int next_last = 0;
 	if (next_details.entry_address) {
 		next_last = next_details.entry_address->p_last;
 	}
 
+	/* we have already calculated the type of the previous word so we can 
+	use it in out weighing of words*/
 	int prev_type = prev_details.nametype;
 
-	/* attaches weighting to name probabilities given the context */
+	/* attaches weighting to name probabilities given the context. */
 	if (next_last) {
-		/* see type_first_word() */
 		curr_first = curr_first + next_last;
 	}
 
-	if (prev_type == 1) {
-		/* see type_last_word() */
-		curr_last = curr_last * 2;
-	}
+	if (prev_type == F_TYPE) {
+		curr_last = curr_last * POS_WEIGHT;
+	} 
 
 	nametype = type_highest_prob(curr_first, curr_last, curr_non);
 
 	return nametype;
 }
 
+/* calculates and returns the type of the last word given the last and 
+second last word */
 int
 type_last_word(word_details_t prev_details, word_details_t curr_details) {
-	int nametype = 0;
+	int nametype = N_TYPE;
 
 	if (!curr_details.entry_address) {
 		return nametype;
@@ -466,29 +481,28 @@ type_last_word(word_details_t prev_details, word_details_t curr_details) {
 	int prev_type = prev_details.nametype;
 
 	/* attaches weighting to name probabilities given the context */
-	if (prev_type == 1) {
+	if (prev_type == F_TYPE) {
 		/* if the prev word is a first name the current word is much more
 		likely to be a last name */
-		curr_last = curr_last * 2;
+		curr_last = curr_last * POS_WEIGHT;
 	}
 
 	nametype = type_highest_prob(curr_first, curr_last, curr_non);
 
 	return nametype;	
-
 }
 
 /* given first, last and non. returns the type with highest probability */
 int
 type_highest_prob(int first, int last, int non) {
 	if (first > last && first > non) {
-		return 1;
+		return F_TYPE;
 	}
 	else if (last > non) {
-		return 2;
+		return L_TYPE;
 	}
 	else {
-		return 0;
+		return N_TYPE;
 	}
 }
 
@@ -498,15 +512,15 @@ print_smart_label(word_details_t curr_details) {
 	printf("%-32s", curr_details.word);
 
 	switch(curr_details.nametype) {
-		case 0:
+		case N_TYPE:
 		printf("%s\n", NOT);
 		break;
 
-		case 1:
+		case F_TYPE:
 		printf("%s\n", FIRST);
 		break;
 
-		case 2:
+		case L_TYPE:
 		printf("%s\n", LAST);
 		break;
 	}
