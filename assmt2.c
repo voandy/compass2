@@ -79,6 +79,8 @@ word_details_t get_details(word_t curr_word, dictionary_t dictionary[],
 	int dict_size);
 int type_one_word(word_details_t curr_details);
 int type_first_word(word_details_t curr_details, word_details_t next_details);
+int type_curr_word(word_details_t prev_details, word_details_t curr_details, 
+	word_details_t next_details);
 int type_last_word(word_details_t prev_details, word_details_t curr_details);
 int type_highest_prob(int first, int last, int non);
 void print_smart_label(word_details_t curr_word);
@@ -321,6 +323,11 @@ stage_five(dictionary_t dictionary[], int dict_size, list_t *sentence) {
 		curr_details = next_details;
 		next_details = get_details(next_word, dictionary, dict_size);
 
+		/* calculates and prints the type of the current word */
+		curr_details.nametype = type_curr_word(prev_details, curr_details, 
+			next_details);
+		print_smart_label(curr_details);
+
 		curr_node = curr_node->next;
 	}
 
@@ -366,6 +373,8 @@ type_one_word(word_details_t curr_details) {
 	nametype = type_highest_prob(curr_details.entry_address->p_first, 
 		curr_details.entry_address->p_last, 
 		curr_details.entry_address->p_non_name);
+
+	return nametype;
 }
 
 /* given the details of the first word and the word following this will
@@ -393,12 +402,50 @@ type_first_word(word_details_t curr_details, word_details_t next_details) {
 	if (next_last) {
 		/* if the next word is likely to be a last name then the current word
 		is more likely to be a first name */
-		curr_first = curr_first + (0.5 * next_last);
+		curr_first = curr_first + next_last;
 	}
 	/* first word is unlikely to be a last name so we weight it accordingly */
 	curr_last = 0.5 * curr_last;
 
 	/* assign nametype to most probably type after weighting */
+	nametype = type_highest_prob(curr_first, curr_last, curr_non);
+
+	return nametype;
+}
+
+/* calculates the type of the current word in context, this function is a 
+combination of type_first_word and type_last_word */
+int 
+type_curr_word(word_details_t prev_details, word_details_t curr_details, 
+	word_details_t next_details) {
+	int nametype = 0;
+
+	if (!curr_details.entry_address) {
+		return nametype;
+	}
+
+	int curr_first = curr_details.entry_address->p_first;
+	int curr_last = curr_details.entry_address->p_last;
+	int curr_non = curr_details.entry_address->p_non_name;
+
+	int next_last = 0;
+	if (next_details.entry_address) {
+		next_last = next_details.entry_address->p_last;
+	}
+
+	int prev_type = prev_details.nametype;
+
+	/* attaches weighting to name probabilities given the context */
+	if (next_last) {
+		/* see type_first_word() */
+		curr_first = curr_first + next_last;
+	}
+
+	if (prev_type == 1) {
+		/* see type_last_word() */
+		curr_last = curr_last * 2;
+	}
+
 	nametype = type_highest_prob(curr_first, curr_last, curr_non);
 
 	return nametype;
@@ -412,9 +459,26 @@ type_last_word(word_details_t prev_details, word_details_t curr_details) {
 		return nametype;
 	}
 
+	int curr_first = curr_details.entry_address->p_first;
+	int curr_last = curr_details.entry_address->p_last;
+	int curr_non = curr_details.entry_address->p_non_name;
+
+	int prev_type = prev_details.nametype;
+
+	/* attaches weighting to name probabilities given the context */
+	if (prev_type == 1) {
+		/* if the prev word is a first name the current word is much more
+		likely to be a last name */
+		curr_last = curr_last * 2;
+	}
+
+	nametype = type_highest_prob(curr_first, curr_last, curr_non);
+
+	return nametype;	
+
 }
 
-/* given first, last and non name. returns the type with highest probability */
+/* given first, last and non. returns the type with highest probability */
 int
 type_highest_prob(int first, int last, int non) {
 	if (first > last && first > non) {
